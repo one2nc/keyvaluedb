@@ -12,58 +12,125 @@ Write a basic key-value DB implementation (think redis 0.1 version). Program wil
 
 Sample input is of format: `COMMAND ARGS...`
 
-## Story 1: SET key-values and then GET them. You can also DEL a key.
+## Story 1 (set, get, and delete commands)
+Implement the following commands: SET, GET and DELETE
 ```
-SET key1 value1
-SET key2 value2
-GET key1 // should return value1
-DEL key2 // deletes key2 and its value
-GET key2 // should return nil
-SET key2 newvalue2
+$ SET name foo
+> OK
+
+$ SET surname "foo bar"
+> OK
+
+$ GET name
+> "foo"
+
+$ DEL surname
+> (integer) 1  
+
+$ GET surname           
+> (nil)
+
+$ SET surname bar 
+> OK
 ```
 
-## Story 2: Basic numeric operations and error cases
+## Story 2 (incr and incrby commands)
+Implement Basic Numeric Operations (INCR, INCRBY) with Error Handling
 ```
-SET counter 0
-INCR counter // increments a "counter" key, if present and returns incremented value, in this case: 1
-GET counter // returns 1
-INCRBY counter 10 // increment by 10, returns 11
-INCR foo // automatically creates a new key called "foo" and increments it by 1 and thus returns 1
+$ SET counter 0
+> OK
+
+$ INCR counter    
+> (integer) 1
+
+$ GET counter     
+> "1"
+
+$ INCRBY counter 10 
+> (integer) 11
+
+$ INCR foo          
+> (integer) 1
+
+$ INCRBY bar 21    
+> (integer) 21
 ```
 
-## Story 3: Command spanning multiple sub-commands
+## Story 3 (multi, exec, and discard commands)
+Implement the following commands: MULTI, EXEC, and DISCARD
 ### Case 1: Happy path
 ```
-MULTI // starts a multi line commands
-INCR foo // queues this command, doesn't execute it immediately
-SET key1 value1 // queues this command, doesn't execute it immediately
-EXEC // execute all queued commands and returns output of all commands in an array, thus returns: [1 value1]
+$ MULTI
+> OK
+
+$ INCR foo        
+> QUEUED
+
+$ SET bar 1 
+> QUEUED
+
+$ EXEC
+> 1) (integer) 1
+  2) OK
 ```
 ### Case 2: Discard
 ```
-MULTI // starts a multi line commands
-INCR foo // queues this command, doesn't execute it immediately
-SET key1 value1 // queues this command, doesn't execute it immediately
-DISCARD // discard all queued commands
-GET key1 // returns nil as key1 doesn't exists
+$ MULTI           
+> OK
+
+$ INCR foo        
+> QUEUED
+
+$ SET bar 1 
+> QUEUED
+
+$ DISCARD   
+> OK
+
+$ GET key1  
+> (nil)
 ```
-## Story 4: Generate compacted command output (think materialized view of current DB state)
+## Story 4 (compact command)
+Implement a `COMPACT` command that outputs the current state of the data store. This is a custom command that the actual Redis server doesn’t implement.
+###
 ### Example 1:
 ```
-SET counter 10
-INCR counter
-INCR counter
-SET foo bar
-GET counter // returns 12
-INCR counter
-COMPACT // this should return following output
-SET counter 13
-SET foo bar
+$ SET counter 10
+> OK
+
+$ INCR counter
+> OK
+
+$ INCR counter
+> OK
+
+$ SET foo bar
+> OK
+
+$ GET counter    
+> "12"
+
+$ INCR counter
+> "13"
+
+$ COMPACT        
+> SET counter 13
+  SET foo bar
 ```
 ### Example 2:
 ```
-INCR counter // returns 1
-INCRBY counter 10 // returns 11
-GET counter // returns 11
-DEL counter // deletes counter
-COMPACT // this should compact to empty output as there's no keys present in the DB
+$ INCR counter      
+> OK 
+
+$ INCRBY counter 10 
+> OK
+
+$ GET counter       
+> "11"
+
+$ DEL counter      
+> (integer) 1
+
+$ COMPACT           
+> (nil)
+```

@@ -3,22 +3,30 @@ package domain
 import (
 	"fmt"
 	"strconv"
-	"strings"
 )
 
 type keyValueDB struct {
-	storage             map[string]entity
+	storage             map[string]interface{}
 	isMultiBlockStarted bool
 	cmds                []command
 }
 
 func NewKeyValueDB() *keyValueDB {
-	return &keyValueDB{storage: make(map[string]entity)}
+	return &keyValueDB{storage: make(map[string]interface{})}
 }
 
-func (kvdb *keyValueDB) Execute(cmd command) string {
+func (kvdb *keyValueDB) Execute(cmd command) interface{} {
+	_, err := cmd.Validate()
+	if err != nil {
+		return err.Error()
+	}
 
-	switch cmd.c {
+	if kvdb.isMultiBlockStarted && !cmd.isTerminatorCmd() {
+		kvdb.enqueue(cmd)
+		return "QUEUED"
+	}
+
+	switch cmd.Name {
 	case MULTI:
 		kvdb.isMultiBlockStarted = true
 		return "OK"
@@ -30,104 +38,78 @@ func (kvdb *keyValueDB) Execute(cmd command) string {
 		kvdb.isMultiBlockStarted = false
 		return kvdb.executeCommands()
 	case COMPACT:
-		for _, val := range kvdb.storage {
-			fmt.Println("SET", val.Key, val.Value)
+		var outputs []interface{}
+		for key, val := range kvdb.storage {
+			outputs = append(outputs, fmt.Sprintf("SET %v %v", key, val))
 		}
-		return "OK"
-	}
-
-	if kvdb.isMultiBlockStarted {
-		kvdb.enqueue(cmd)
-		return "OK"
-	}
-
-	result, err := cmd.Run()
-	if err != nil {
-		return "ERROR"
-	}
-
-	switch cmd.c {
+		return outputs
 	case SET:
-		kvdb.storage[result.Key] = *result
-		return result.Value
+		kvdb.storage[cmd.Key] = cmd.Value
+		return "OK"
 	case GET:
-		v, ok := kvdb.storage[result.Key]
+		v, ok := kvdb.storage[cmd.Key]
 		if !ok {
-			return ""
+			return nil
 		}
-		return v.Value
+		return v
 	case DEL:
-		v, ok := kvdb.storage[result.Key]
+		_, ok := kvdb.storage[cmd.Key]
 		if !ok {
-			return ""
+			return 0
 		}
-		delete(kvdb.storage, result.Key)
-		return v.Value
+		delete(kvdb.storage, cmd.Key)
+		return 1
 	case INCR:
-		v, ok := kvdb.storage[result.Key]
+		v, ok := kvdb.storage[cmd.Key]
 		if !ok {
-			newResult := entity{
-				Key:   result.Key,
-				Value: "1",
-			}
-			kvdb.storage[result.Key] = newResult
-			return newResult.Value
+			newResult := "1"
+			kvdb.storage[cmd.Key] = newResult
+			return newResult
 		}
 
-		currentValue, err := strconv.Atoi(v.Value)
+		currentValue, err := strconv.Atoi(v.(string))
 		if err != nil {
-			return err.Error()
+			return "(error) ERR value is not an integer or out of range"
 		}
 
 		incrementedValue := fmt.Sprintf("%v", currentValue+1)
-		newResult := entity{
-			Key:   result.Key,
-			Value: incrementedValue,
-		}
-		kvdb.storage[result.Key] = newResult
+		kvdb.storage[cmd.Key] = incrementedValue
 		return incrementedValue
 	case INCRBY:
-		v, ok := kvdb.storage[result.Key]
+		v, ok := kvdb.storage[cmd.Key]
 		if !ok {
-			newResult := entity{
-				Key:   result.Key,
-				Value: "1",
-			}
-			kvdb.storage[result.Key] = newResult
-			return newResult.Value
+			newResult := cmd.Value
+			kvdb.storage[cmd.Key] = newResult
+			return newResult
 		}
 
-		currentValue, err := strconv.Atoi(v.Value)
+		currentValue, err := strconv.Atoi(v.(string))
 		if err != nil {
-			return err.Error()
+			return "(error) ERR value is not an integer or out of range"
 		}
 
-		resultValue, err := strconv.Atoi(result.Value)
+		resultValue, err := strconv.Atoi(cmd.Value.(string))
 		if err != nil {
-			return err.Error()
+			return "(error) ERR value is not an integer or out of range"
 		}
 
 		incrementedValue := fmt.Sprintf("%v", currentValue+resultValue)
 
-		newResult := entity{
-			Key:   result.Key,
-			Value: incrementedValue,
-		}
-		kvdb.storage[result.Key] = newResult
+		kvdb.storage[cmd.Key] = incrementedValue
 		return incrementedValue
 	}
 
-	return ""
+	return fmt.Errorf("(error) ERR unknown command '%s'", cmd.Key)
 }
 
 func (kvdb *keyValueDB) enqueue(cmd command) {
 	kvdb.cmds = append(kvdb.cmds, cmd)
 }
 
-func (kvdb *keyValueDB) executeCommands() string {
-	var outputs []string
+func (kvdb *keyValueDB) executeCommands() interface{} {
+	var outputs []interface{}
 	for _, cmd := range kvdb.cmds {
 		outputs = append(outputs, kvdb.Execute(cmd))
 	}
-	return fmt.Sprintf("[%s]", strings.Join(outputs, ", "))
+	return outputs
 }

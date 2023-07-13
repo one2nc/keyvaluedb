@@ -4,47 +4,75 @@ import (
 	"fmt"
 )
 
-type cmd int
-
 const (
-	SET cmd = iota
-	GET
-	DEL
-	INCR
-	INCRBY
-	MULTI
-	EXEC
-	DISCARD
-	COMPACT
+	SET     string = "SET"
+	GET     string = "GET"
+	DEL     string = "DEL"
+	INCR    string = "INCR"
+	INCRBY  string = "INCRBY"
+	MULTI   string = "MULTI"
+	EXEC    string = "EXEC"
+	DISCARD string = "DISCARD"
+	COMPACT string = "COMPACT"
 )
 
 type command struct {
-	c    cmd
-	args []interface{}
+	Name  string
+	Key   string
+	Value interface{}
 }
 
-func NewCommand(c cmd, args ...interface{}) command {
+func NewCommand(name string, args ...interface{}) command {
+	var key string
+	var value interface{}
+	if len(args) > 1 {
+		value = args[1]
+	}
+	if len(args) > 0 {
+		key = fmt.Sprintf("%v", args[0])
+	}
+
 	return command{
-		c:    c,
-		args: args,
+		Name:  name,
+		Key:   key,
+		Value: value,
 	}
 }
 
-func (c command) Run() (*entity, error) {
+func (c command) isTerminatorCmd() bool {
+	switch c.Name {
+	case EXEC, DISCARD:
+		return true
+	}
+	return false
+}
 
-	switch c.c {
+func (c command) Validate() (bool, error) {
+	switch c.Name {
 	case SET, INCRBY:
-		return &entity{
-			Key:   fmt.Sprintf("%v", c.args[0]),
-			Value: fmt.Sprintf("%v", c.args[1]),
-		}, nil
+		cmd := "set"
+		if c.Name == INCRBY {
+			cmd = "incrby"
+		}
+		if c.Value == nil {
+			return false, fmt.Errorf("(error) ERR wrong number of arguments for '%s' command", cmd)
+		}
+		return true, nil
 	case GET, DEL, INCR:
-		return &entity{
-			Key: fmt.Sprintf("%v", c.args[0]),
-		}, nil
+		cmd := "get"
+		switch c.Name {
+		case DEL:
+			cmd = "del"
+		case INCR:
+			cmd = "incrby"
+		}
+		if c.Key == "" {
+			return false, fmt.Errorf("(error) ERR wrong number of arguments for '%s' command", cmd)
+		}
+		return true, nil
 	case MULTI, EXEC, DISCARD, COMPACT:
-		return nil, nil
+		return true, nil
 	}
 
-	return nil, fmt.Errorf("command not yet implemented")
+	return false, fmt.Errorf("(error) ERR unknown command `%s`, with args beginning with: '%s', '%s',", c.Name, c.Key, c.Value)
 }
