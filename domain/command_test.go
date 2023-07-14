@@ -10,19 +10,19 @@ func TestNewCommand(t *testing.T) {
 		name string
 		c    string
 		args []interface{}
-		want command
+		want Command
 	}{
 		{
 			name: "Empty command",
 			c:    "",
 			args: []interface{}{},
-			want: command{},
+			want: Command{},
 		},
 		{
 			name: "Command with signle argument",
 			c:    GET,
 			args: []interface{}{"foo"},
-			want: command{
+			want: Command{
 				Name: GET,
 				Key:  "foo",
 			},
@@ -31,7 +31,7 @@ func TestNewCommand(t *testing.T) {
 			name: "Command with two arguments",
 			c:    SET,
 			args: []interface{}{"foo", "bar"},
-			want: command{
+			want: Command{
 				Name:  SET,
 				Key:   "foo",
 				Value: "bar",

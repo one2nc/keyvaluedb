@@ -5,17 +5,17 @@ import (
 	"strconv"
 )
 
-type keyValueDB struct {
+type KeyValueDB struct {
 	storage             map[string]interface{}
 	isMultiBlockStarted bool
-	cmds                []command
+	cmds                []Command
 }
 
-func NewKeyValueDB() *keyValueDB {
-	return &keyValueDB{storage: make(map[string]interface{})}
+func NewKeyValueDB() *KeyValueDB {
+	return &KeyValueDB{storage: make(map[string]interface{})}
 }
 
-func (kvdb *keyValueDB) Execute(cmd command) interface{} {
+func (kvdb *KeyValueDB) Execute(cmd Command) interface{} {
 	_, err := cmd.Validate()
 	if err != nil {
 		return err.Error()
@@ -102,11 +102,11 @@ func (kvdb *keyValueDB) Execute(cmd command) interface{} {
 	return fmt.Errorf("(error) ERR unknown command '%s'", cmd.Key)
 }
 
-func (kvdb *keyValueDB) enqueue(cmd command) {
+func (kvdb *KeyValueDB) enqueue(cmd Command) {
 	kvdb.cmds = append(kvdb.cmds, cmd)
 }
 
-func (kvdb *keyValueDB) executeCommands() interface{} {
+func (kvdb *KeyValueDB) executeCommands() interface{} {
 	var outputs []interface{}
 	for _, cmd := range kvdb.cmds {
 		outputs = append(outputs, kvdb.Execute(cmd))

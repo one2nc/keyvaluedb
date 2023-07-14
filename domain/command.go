@@ -16,13 +16,13 @@ const (
 	COMPACT string = "COMPACT"
 )
 
-type command struct {
+type Command struct {
 	Name  string
 	Key   string
 	Value interface{}
 }
 
-func NewCommand(name string, args ...interface{}) command {
+func NewCommand(name string, args ...interface{}) Command {
 	var key string
 	var value interface{}
 	if len(args) > 1 {
@@ -32,14 +32,14 @@ func NewCommand(name string, args ...interface{}) command {
 		key = fmt.Sprintf("%v", args[0])
 	}
 
-	return command{
+	return Command{
 		Name:  name,
 		Key:   key,
 		Value: value,
 	}
 }
 
-func (c command) isTerminatorCmd() bool {
+func (c Command) isTerminatorCmd() bool {
 	switch c.Name {
 	case EXEC, DISCARD:
 		return true
@@ -47,7 +47,7 @@ func (c command) isTerminatorCmd() bool {
 	return false
 }
 
-func (c command) Validate() (bool, error) {
+func (c Command) Validate() (bool, error) {
 	switch c.Name {
 	case SET, INCRBY:
 		cmd := "set"
@@ -74,5 +74,13 @@ func (c command) Validate() (bool, error) {
 		return true, nil
 	}
 
-	return false, fmt.Errorf("(error) ERR unknown command `%s`, with args beginning with: '%s', '%s',", c.Name, c.Key, c.Value)
+	params := ""
+	if c.Key != "" {
+		params = fmt.Sprintf("`%s`,", c.Key)
+		if c.Value != nil {
+			params = fmt.Sprintf("`%s`, `%v`,", c.Key, c.Value)
+		}
+	}
+
+	return false, fmt.Errorf("(error) ERR unknown command `%s`, with args beginning with: %s", c.Name, params)
 }

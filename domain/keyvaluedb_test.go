@@ -8,33 +8,33 @@ import (
 func TestKeyValueDBExecute(t *testing.T) {
 	tests := []struct {
 		name     string
-		commands []command
+		commands []Command
 		expected []interface{}
 	}{
 		{
 			name: "Set",
-			commands: []command{
+			commands: []Command{
 				NewCommand(SET, "foo", "bar"),
 			},
 			expected: []interface{}{"OK"},
 		},
 		{
 			name: "Set with invalid argument",
-			commands: []command{
+			commands: []Command{
 				NewCommand(SET, "foo"),
 			},
 			expected: []interface{}{"(error) ERR wrong number of arguments for 'set' command"},
 		},
 		{
 			name: "Get for nonexisting key",
-			commands: []command{
+			commands: []Command{
 				NewCommand(GET, "nonexisting"),
 			},
 			expected: []interface{}{nil},
 		},
 		{
 			name: "SetAndGet",
-			commands: []command{
+			commands: []Command{
 				NewCommand(SET, "foo", "bar"),
 				NewCommand(GET, "foo"),
 			},
@@ -42,21 +42,21 @@ func TestKeyValueDBExecute(t *testing.T) {
 		},
 		{
 			name: "Get with invalid argument",
-			commands: []command{
+			commands: []Command{
 				NewCommand(GET, ""),
 			},
 			expected: []interface{}{"(error) ERR wrong number of arguments for 'get' command"},
 		},
 		{
 			name: "Delete for nonexisting key",
-			commands: []command{
+			commands: []Command{
 				NewCommand(DEL, "nonexisting"),
 			},
 			expected: []interface{}{0},
 		},
 		{
 			name: "SetAndDelete",
-			commands: []command{
+			commands: []Command{
 				NewCommand(SET, "foo", "bar"),
 				NewCommand(DEL, "foo"),
 				NewCommand(GET, "foo"),
@@ -65,7 +65,7 @@ func TestKeyValueDBExecute(t *testing.T) {
 		},
 		{
 			name: "Increment for nonexisting key",
-			commands: []command{
+			commands: []Command{
 				NewCommand(INCR, "counter"),
 				NewCommand(GET, "counter"),
 			},
@@ -73,7 +73,7 @@ func TestKeyValueDBExecute(t *testing.T) {
 		},
 		{
 			name: "Increment",
-			commands: []command{
+			commands: []Command{
 				NewCommand(SET, "counter", "3"),
 				NewCommand(INCR, "counter"),
 				NewCommand(GET, "counter"),
@@ -82,7 +82,7 @@ func TestKeyValueDBExecute(t *testing.T) {
 		},
 		{
 			name: "Increment non-integer value",
-			commands: []command{
+			commands: []Command{
 				NewCommand(SET, "counter", "non-integer"),
 				NewCommand(INCR, "counter"),
 			},
@@ -90,7 +90,7 @@ func TestKeyValueDBExecute(t *testing.T) {
 		},
 		{
 			name: "IncrementBy for nonexisting key",
-			commands: []command{
+			commands: []Command{
 				NewCommand(INCRBY, "counter", "10"),
 				NewCommand(GET, "counter"),
 			},
@@ -98,7 +98,7 @@ func TestKeyValueDBExecute(t *testing.T) {
 		},
 		{
 			name: "IncrementBy with invalid value",
-			commands: []command{
+			commands: []Command{
 				NewCommand(INCRBY, "counter", nil),
 				NewCommand(GET, "counter"),
 			},
@@ -106,7 +106,7 @@ func TestKeyValueDBExecute(t *testing.T) {
 		},
 		{
 			name: "IncrementBy",
-			commands: []command{
+			commands: []Command{
 				NewCommand(SET, "counter", "3"),
 				NewCommand(INCRBY, "counter", "10"),
 				NewCommand(GET, "counter"),
@@ -115,7 +115,7 @@ func TestKeyValueDBExecute(t *testing.T) {
 		},
 		{
 			name: "IncrementBy integer value for exiting non-integer value",
-			commands: []command{
+			commands: []Command{
 				NewCommand(SET, "counter", "non-integer"),
 				NewCommand(INCRBY, "counter", "10"),
 			},
@@ -123,7 +123,7 @@ func TestKeyValueDBExecute(t *testing.T) {
 		},
 		{
 			name: "IncrementBy non-integer value for exiting integer value",
-			commands: []command{
+			commands: []Command{
 				NewCommand(SET, "counter", "10"),
 				NewCommand(INCRBY, "counter", "non-integer"),
 			},
@@ -131,7 +131,7 @@ func TestKeyValueDBExecute(t *testing.T) {
 		},
 		{
 			name: "SetAndGetMultipleKeys",
-			commands: []command{
+			commands: []Command{
 				NewCommand(SET, "foo", "bar"),
 				NewCommand(SET, "baz", "qux"),
 				NewCommand(GET, "foo"),
@@ -141,7 +141,7 @@ func TestKeyValueDBExecute(t *testing.T) {
 		},
 		{
 			name: "MultiBlock",
-			commands: []command{
+			commands: []Command{
 				NewCommand(MULTI),
 				NewCommand(SET, "foo", "bar"),
 				NewCommand(GET, "foo"),
@@ -151,7 +151,7 @@ func TestKeyValueDBExecute(t *testing.T) {
 		},
 		{
 			name: "MultiBlock with error in one of the command in the transaction",
-			commands: []command{
+			commands: []Command{
 				NewCommand(MULTI),
 				NewCommand(SET, "foo", "bar"),
 				NewCommand(GET, "foo"),
@@ -162,7 +162,7 @@ func TestKeyValueDBExecute(t *testing.T) {
 		},
 		{
 			name: "DiscardMultiBlock",
-			commands: []command{
+			commands: []Command{
 				NewCommand(MULTI),
 				NewCommand(SET, "foo", "bar"),
 				NewCommand(DISCARD),
@@ -172,7 +172,7 @@ func TestKeyValueDBExecute(t *testing.T) {
 		},
 		{
 			name: "Compact",
-			commands: []command{
+			commands: []Command{
 				NewCommand(SET, "foo", "bar"),
 				NewCommand(SET, "baz", "qux"),
 				NewCommand(COMPACT),
@@ -181,10 +181,10 @@ func TestKeyValueDBExecute(t *testing.T) {
 		},
 		{
 			name: "Invalid command",
-			commands: []command{
+			commands: []Command{
 				NewCommand("INVALID", "foo", "bar"),
 			},
-			expected: []interface{}{"(error) ERR unknown command `INVALID`, with args beginning with: 'foo', 'bar',"},
+			expected: []interface{}{"(error) ERR unknown command `INVALID`, with args beginning with: `foo`, `bar`,"},
 		},
 	}
 

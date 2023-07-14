@@ -134,3 +134,13 @@ $ DEL counter
 $ COMPACT           
 > (nil)
 ```
+## Story 5 (expose the server via tcp)
+
+Expose the program via TCP and allow the separate clients (e.g. `nc` or `telnet`) to connect to it.
+
+- Update the program to expose our Redis-server via a TCP server on a specific port (e.g. 9736).
+- Read the port number from .`env` file.
+- Connect to our Redis-server running on specified port via `telnet` or `nc`.
+- Implement an additional command, `DISCONNECT`, in the client program to close the TCP connection and exit.
+- Connect to our Redis-server using the commands: `nc [localhost](http://localhost) <specified-port>` or `telnet localhost <specified-port>`
+Example: `nc localhost 9736` or `telnet localhost 9736`
