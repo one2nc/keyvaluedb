@@ -2,114 +2,114 @@ package domain
 
 import (
 	"fmt"
+	"keyvaluedb/storage"
 	"strconv"
 )
 
 type KeyValueDB struct {
-	storage             map[string]interface{}
+	storage             storage.Storage
 	isMultiBlockStarted bool
 	cmds                []Command
 }
 
-func NewKeyValueDB() *KeyValueDB {
-	return &KeyValueDB{storage: make(map[string]interface{})}
+func NewKeyValueDB(storage storage.Storage) KeyValueDB {
+	return KeyValueDB{storage: storage}
 }
 
-func (kvdb *KeyValueDB) Execute(cmd Command) interface{} {
+func (kvdb *KeyValueDB) Execute(dbIndex int, cmd Command) (int, interface{}) {
 	_, err := cmd.Validate()
 	if err != nil {
-		return err.Error()
+		return 0, err.Error()
 	}
 
 	if kvdb.isMultiBlockStarted && !cmd.isTerminatorCmd() {
 		kvdb.enqueue(cmd)
-		return "QUEUED"
+		return 0, "QUEUED"
 	}
 
 	switch cmd.Name {
+	case SELECT:
+		dbIndex, err = kvdb.storage.Select(cmd.Key)
+		if err != nil {
+			return 0, err.Error()
+		}
+		return dbIndex, "OK"
 	case MULTI:
 		kvdb.isMultiBlockStarted = true
-		return "OK"
+		return dbIndex, "OK"
 	case DISCARD:
 		kvdb.isMultiBlockStarted = false
 		kvdb.cmds = nil
-		return "OK"
+		return dbIndex, "OK"
 	case EXEC:
 		kvdb.isMultiBlockStarted = false
-		return kvdb.executeCommands()
+		return dbIndex, kvdb.executeCommands(dbIndex)
 	case COMPACT:
 		var outputs []interface{}
-		for key, val := range kvdb.storage {
-			outputs = append(outputs, fmt.Sprintf("SET %v %v", key, val))
+		for keyVal := range kvdb.storage.GetAll(dbIndex) {
+			outputs = append(outputs, fmt.Sprintf("SET %s", keyVal))
 		}
-		return outputs
+		return dbIndex, outputs
 	case SET:
-		kvdb.storage[cmd.Key] = cmd.Value
-		return "OK"
+		kvdb.storage.Set(dbIndex, cmd.Key, cmd.Value)
+		return dbIndex, "OK"
 	case GET:
-		v, ok := kvdb.storage[cmd.Key]
-		if !ok {
-			return nil
-		}
-		return v
+		return dbIndex, kvdb.storage.Get(dbIndex, cmd.Key)
 	case DEL:
-		_, ok := kvdb.storage[cmd.Key]
-		if !ok {
-			return 0
-		}
-		delete(kvdb.storage, cmd.Key)
-		return 1
+		return dbIndex, kvdb.storage.Del(dbIndex, cmd.Key)
 	case INCR:
-		v, ok := kvdb.storage[cmd.Key]
-		if !ok {
+		v := kvdb.storage.Get(dbIndex, cmd.Key)
+		if v == nil {
 			newResult := "1"
-			kvdb.storage[cmd.Key] = newResult
-			return newResult
+			kvdb.storage.Set(dbIndex, cmd.Key, newResult)
+			return dbIndex, newResult
 		}
 
 		currentValue, err := strconv.Atoi(v.(string))
 		if err != nil {
-			return "(error) ERR value is not an integer or out of range"
+			return dbIndex, "(error) ERR value is not an integer or out of range"
 		}
 
 		incrementedValue := fmt.Sprintf("%v", currentValue+1)
-		kvdb.storage[cmd.Key] = incrementedValue
-		return incrementedValue
+		kvdb.storage.Set(dbIndex, cmd.Key, incrementedValue)
+		return dbIndex, incrementedValue
 	case INCRBY:
-		v, ok := kvdb.storage[cmd.Key]
-		if !ok {
+		v := kvdb.storage.Get(dbIndex, cmd.Key)
+		if v == nil {
 			newResult := cmd.Value
-			kvdb.storage[cmd.Key] = newResult
-			return newResult
+			kvdb.storage.Set(dbIndex, cmd.Key, newResult)
+			return dbIndex, newResult
 		}
 
 		currentValue, err := strconv.Atoi(v.(string))
 		if err != nil {
-			return "(error) ERR value is not an integer or out of range"
+			return dbIndex, "(error) ERR value is not an integer or out of range"
 		}
 
 		resultValue, err := strconv.Atoi(cmd.Value.(string))
 		if err != nil {
-			return "(error) ERR value is not an integer or out of range"
+			return dbIndex, "(error) ERR value is not an integer or out of range"
 		}
 
 		incrementedValue := fmt.Sprintf("%v", currentValue+resultValue)
 
-		kvdb.storage[cmd.Key] = incrementedValue
-		return incrementedValue
+		kvdb.storage.Set(dbIndex, cmd.Key, incrementedValue)
+		return dbIndex, incrementedValue
 	}
 
-	return fmt.Errorf("(error) ERR unknown command '%s'", cmd.Key)
+	return dbIndex, fmt.Errorf("(error) ERR unknown command '%s'", cmd.Key)
 }
 
 func (kvdb *KeyValueDB) enqueue(cmd Command) {
 	kvdb.cmds = append(kvdb.cmds, cmd)
 }
 
-func (kvdb *KeyValueDB) executeCommands() interface{} {
+func (kvdb *KeyValueDB) executeCommands(dbIndex int) interface{} {
 	var outputs []interface{}
 	for _, cmd := range kvdb.cmds {
-		outputs = append(outputs, kvdb.Execute(cmd))
+		_, result := kvdb.Execute(dbIndex, cmd)
+		outputs = append(outputs, result)
 	}
+	kvdb.cmds = nil
 	return outputs
 }

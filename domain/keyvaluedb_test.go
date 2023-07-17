@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"keyvaluedb/storage"
 	"reflect"
 	"testing"
 )
@@ -180,6 +181,34 @@ func TestKeyValueDBExecute(t *testing.T) {
 			expected: []interface{}{"OK", "OK", []interface{}{"SET foo bar", "SET baz qux"}},
 		},
 		{
+			name: "Select with wrong number of arguments",
+			commands: []Command{
+				NewCommand(SELECT),
+			},
+			expected: []interface{}{"(error) ERR wrong number of arguments for 'select' command"},
+		},
+		{
+			name: "Select with invalid database index",
+			commands: []Command{
+				NewCommand(SELECT, "invalid"),
+			},
+			expected: []interface{}{"(error) ERR value is not an integer or out of range"},
+		},
+		{
+			name: "Select with out of range database index",
+			commands: []Command{
+				NewCommand(SELECT, "40"),
+			},
+			expected: []interface{}{"(error) ERR DB index is out of range"},
+		},
+		{
+			name: "Select valid database",
+			commands: []Command{
+				NewCommand(SELECT, "1"),
+			},
+			expected: []interface{}{"OK"},
+		},
+		{
 			name: "Invalid command",
 			commands: []Command{
 				NewCommand("INVALID", "foo", "bar"),
@@ -189,10 +218,10 @@ func TestKeyValueDBExecute(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		kvdb := NewKeyValueDB()
+		kvdb := NewKeyValueDB(storage.NewInMemory("2"))
 		t.Run(test.name, func(t *testing.T) {
 			for idx, cmd := range test.commands {
-				got := kvdb.Execute(cmd)
+				_, got := kvdb.Execute(0, cmd)
 				want := test.expected[idx]
 				if !reflect.DeepEqual(got, want) {
 					t.Errorf("command %v returned %q, expected %q", cmd, got, want)

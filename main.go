@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"keyvaluedb/domain"
+	"keyvaluedb/storage"
 	"log"
 	"net"
 	"os"
@@ -18,7 +19,10 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	kvdb := domain.NewKeyValueDB()
+	dbCntStr := os.Getenv("DB_COUNT")
+
+	storage := storage.NewInMemory(dbCntStr)
+	kvdb := domain.NewKeyValueDB(storage)
 
 	// Start TCP server
 	listener, err := startTcpServer(fmt.Sprintf(":%s", os.Getenv("APP_PORT")))
@@ -34,7 +38,7 @@ func main() {
 			continue
 		}
 		// Handle connection in a separate goroutine
-		go handleConnection(conn, *kvdb)
+		go handleConnection(conn, kvdb)
 	}
 }
 
@@ -53,8 +57,13 @@ func handleConnection(conn net.Conn, kvdb domain.KeyValueDB) {
 
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
+	dbIndex := 0
 	for {
-		fmt.Fprintf(writer, "$")
+		if dbIndex > 0 {
+			fmt.Fprintf(writer, "[%d]$", dbIndex)
+		} else {
+			fmt.Fprintf(writer, "$")
+		}
 		writer.Flush()
 
 		// Read client input
@@ -64,7 +73,8 @@ func handleConnection(conn net.Conn, kvdb domain.KeyValueDB) {
 			break
 		}
 
-		result := kvdb.Execute(command)
+		var result interface{}
+		dbIndex, result = kvdb.Execute(dbIndex, command)
 		printResult(writer, result)
 	}
 }

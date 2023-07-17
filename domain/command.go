@@ -14,6 +14,7 @@ const (
 	EXEC    string = "EXEC"
 	DISCARD string = "DISCARD"
 	COMPACT string = "COMPACT"
+	SELECT  string = "SELECT"
 )
 
 type Command struct {
@@ -66,6 +67,12 @@ func (c Command) Validate() (bool, error) {
 		case INCR:
 			cmd = "incrby"
 		}
+		if c.Key == "" {
+			return false, fmt.Errorf("(error) ERR wrong number of arguments for '%s' command", cmd)
+		}
+		return true, nil
+	case SELECT:
+		cmd := "select"
 		if c.Key == "" {
 			return false, fmt.Errorf("(error) ERR wrong number of arguments for '%s' command", cmd)
 		}
