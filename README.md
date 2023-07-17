@@ -1,146 +1,98 @@
+# Key Value DB (Redis v0.0.1) in Go
 
-Write a basic key-value DB implementation (think redis 0.1 version). Program will accept DB commands as inputs and process them by creating DB structure in memory.
+This readme file provides an overview and instructions for using the keyvaluedb CLI tool written in Golang.
 
-# Expectations:
----
-- Choose any programming language.
-- Test drive the code (use TDD). If not possible, write tests after the code is written. Code with zero tests will not be reviewed :-)
-- Write Readme describing the Assumptions / Technical decisions etc.
-- Aim of this exercise is to write modular and extensible code. It's okay if it is NOT highly performant, as we don't plan to use it in production to replace Redis.
-- As with all things in software, the requirements will change over time. Good modular code is open for extension and closed for modifications (Open-Closed pricinple in SOLID). Aim to write such code.
-- Don't get fancy, keep things simple and stupid. When in doubt, make reasonable assumptions and document them in the Readme.
+## Description
 
-Sample input is of format: `COMMAND ARGS...`
+The CLI tool is a key-value database (KVDB) that allows users to interact with a simple in-memory database through a TCP server. It provides a command-line interface for executing various commands and retrieving results.
 
-## Story 1 (set, get, and delete commands)
-Implement the following commands: SET, GET and DELETE
-```
-$ SET name foo
-> OK
+## Installation
 
-$ SET surname "foo bar"
-> OK
+To use the CLI tool, you need to have Golang(1.18) installed on your machine. Follow the steps below to install and set up the tool:
 
-$ GET name
-> "foo"
+1. Clone the repository or download the source code files.
+2. Open a terminal and navigate to the project directory.
+3. Run the following command to build the CLI tool:
 
-$ DEL surname
-> (integer) 1  
+   ```shell
+   go build -o kvdb
+   ```
 
-$ GET surname           
-> (nil)
+   This will create an executable file named `kvdb` in the project directory.
 
-$ SET surname bar 
-> OK
-```
+4. Optionally, you can move the `kvdb` executable to a directory included in your system's `PATH` environment variable for easier access.
 
-## Story 2 (incr and incrby commands)
-Implement Basic Numeric Operations (INCR, INCRBY) with Error Handling
-```
-$ SET counter 0
-> OK
+## Usage
 
-$ INCR counter    
-> (integer) 1
+To start the TCP server and use the CLI tool, follow these steps:
 
-$ GET counter     
-> "1"
+1. Ensure the environment variable `APP_PORT` is set to the desired port number on which the TCP server should listen. For example, you can set it to `9736` by running:
 
-$ INCRBY counter 10 
-> (integer) 11
+   ```shell
+   export APP_PORT=9736
+   ```
 
-$ INCR foo          
-> (integer) 1
+   Replace `9736` with the desired port number.
 
-$ INCRBY bar 21    
-> (integer) 21
-```
+2. Optionally, if you want to specify the number of in-memory databases (`DB_COUNT`), set the environment variable as well. For example:
 
-## Story 3 (multi, exec, and discard commands)
-Implement the following commands: MULTI, EXEC, and DISCARD
-### Case 1: Happy path
-```
-$ MULTI
-> OK
+   ```shell
+   export DB_COUNT=16
+   ```
 
-$ INCR foo        
-> QUEUED
+   Replace `16` with the desired number of databases. If not set, the default value is `16`.
 
-$ SET bar 1 
-> QUEUED
+3. Run the following command to start the TCP server:
 
-$ EXEC
-> 1) (integer) 1
-  2) OK
-```
-### Case 2: Discard
-```
-$ MULTI           
-> OK
+   ```shell
+   ./kvdb
+   ```
 
-$ INCR foo        
-> QUEUED
+   Replace `./kvdb` with the actual path to the `kvdb` executable if it's not in the current directory or not in your `PATH`.
 
-$ SET bar 1 
-> QUEUED
+4. The TCP server will start and display a message indicating that it is listening on the specified port.
 
-$ DISCARD   
-> OK
+5. Open another terminal or use a tool like `nc` to connect to the TCP server. For example:
 
-$ GET key1  
-> (nil)
-```
-## Story 4 (compact command)
-Implement a `COMPACT` command that outputs the current state of the data store. This is a custom command that the actual Redis server doesn’t implement.
-###
-### Example 1:
-```
-$ SET counter 10
-> OK
+   ```shell
+   nc localhost 9736
+   ```
 
-$ INCR counter
-> OK
+   Replace `localhost` with the appropriate host if the server is running on a different machine, and `9736` with the correct port number.
 
-$ INCR counter
-> OK
+6. Once connected, you can start interacting with the CLI tool by entering commands. The command prompt is denoted by a `$` symbol.
 
-$ SET foo bar
-> OK
+7. The available commands are case-insensitive and can be entered in the following format:
 
-$ GET counter    
-> "12"
+   ```
+   COMMAND [argument1] [argument2] ...
+   ```
 
-$ INCR counter
-> "13"
+   Replace `COMMAND` with one of the supported commands and provide the necessary arguments.
 
-$ COMPACT        
-> SET counter 13
-  SET foo bar
-```
-### Example 2:
-```
-$ INCR counter      
-> OK 
+8. The CLI tool supports the following commands:
+  
+    - `SET key value`: Sets the value of the specified key in the current database.
+    - `GET key`: Retrieves the value of the specified key from the current database.
+    - `DEL key`: Deletes the specified key from the current database.
+    - `INCR key`: Increments the value of the specified key by 1.
+    - `INCRBY key increment`: Increments the value of the specified key by the specified increment.
+    - `MULTI`: Starts a transaction block.
+    - `EXEC`: Executes all commands in a transaction block.
+    - `DISCARD`: Discards all commands in a transaction block.
+    - `COMPACT`: Compacts the database by removing expired keys.
+    - `SELECT` index: Switches to the specified database index (0-based).
 
-$ INCRBY counter 10 
-> OK
+    Replace key, value, index, and increment with the appropriate values.
 
-$ GET counter       
-> "11"
+9. After entering a command, the CLI tool will display the result of the command. If the result is a list, each item will be numbered.
 
-$ DEL counter      
-> (integer) 1
+10. To exit the CLI tool, close the `nc` connection or terminate the terminal session.
 
-$ COMPACT           
-> (nil)
-```
-## Story 5 (expose the server via tcp)
+## Dependencies
 
-Expose the program via TCP and allow the separate clients (e.g. `nc` or `telnet`) to connect to it.
+The CLI tool depends on the following external packages:
 
-- Update the program to expose our Redis-server via a TCP server on a specific port (e.g. 9736).
-- Read the port number from .`env` file.
-- Connect to our Redis-server running on specified port via `telnet` or `nc`.
-- Implement an additional command, `DISCONNECT`, in the client program to close the TCP connection and exit.
-- Connect to our Redis-server using the commands: `nc [localhost](http://localhost) <specified-port>` or `telnet localhost <specified-port>`
-Example: `nc localhost 9736` or `telnet localhost 9736`
+- `github.com/joho/godotenv`: Used for loading environment variables from a `.env` file.
+
+Make sure to install these dependencies using a package manager like `go get` or by including them in your Go module dependencies.

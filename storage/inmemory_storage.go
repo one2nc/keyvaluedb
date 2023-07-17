@@ -13,7 +13,7 @@ type inMemory struct {
 func NewInMemory(dbCntStr string) Storage {
 	dbCnt, err := strconv.Atoi(dbCntStr)
 	if err != nil {
-		dbCnt = 1
+		dbCnt = 16
 	}
 
 	stg := make(map[int]map[string]interface{})
