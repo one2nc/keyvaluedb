@@ -19,19 +19,19 @@ func NewKeyValueDB(storage storage.Storage) KeyValueDB {
 func (kvdb *KeyValueDB) Execute(dbIndex int, cmd Command) (int, interface{}) {
 	_, err := cmd.Validate()
 	if err != nil {
-		return 0, err.Error()
+		return dbIndex, err.Error()
 	}
 
 	if kvdb.isMultiBlockStarted && !cmd.isTerminatorCmd() {
 		kvdb.enqueue(cmd)
-		return 0, "QUEUED"
+		return dbIndex, "QUEUED"
 	}
 
 	switch cmd.Name {
 	case SELECT:
 		dbIndex, err = kvdb.storage.Select(cmd.Key)
 		if err != nil {
-			return 0, err.Error()
+			return dbIndex, err.Error()
 		}
 		return dbIndex, "OK"
 	case MULTI:

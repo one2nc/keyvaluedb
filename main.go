@@ -8,12 +8,18 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/joho/godotenv"
 )
 
 func main() {
+
+	// Handle interrupt signal
+	handleInterruptSignal()
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal(err.Error())
@@ -40,6 +46,19 @@ func main() {
 		// Handle connection in a separate goroutine
 		go handleConnection(conn, kvdb)
 	}
+}
+
+func handleInterruptSignal() {
+	// Create an interrupt channel to listen for the interrupt signal
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-interrupt
+		fmt.Println("Interrupt signal received. Gracefully stopping...")
+
+		os.Exit(0)
+	}()
 }
 
 func startTcpServer(port string) (net.Listener, error) {
